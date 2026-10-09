@@ -1,6 +1,12 @@
 const API_BASE = '/api'
 
-export async function uploadActivity(file: File): Promise<unknown> {
+export interface UploadReceipt {
+  status: 'received'
+  filename: string
+  size_bytes: number
+}
+
+export async function uploadActivity(file: File): Promise<UploadReceipt> {
   const body = new FormData()
   body.append('file', file)
 
@@ -8,10 +14,11 @@ export async function uploadActivity(file: File): Promise<unknown> {
     method: 'POST',
     body,
   })
+  const result = (await response.json()) as UploadReceipt | { error?: string }
 
   if (!response.ok) {
-    throw new Error(`Activity upload failed (${response.status})`)
+    throw new Error('error' in result && result.error ? result.error : `업로드 실패 (${response.status})`)
   }
 
-  return response.json()
+  return result as UploadReceipt
 }
