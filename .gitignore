@@ -1,0 +1,20 @@
+# 개인 GPS 정보가 포함될 수 있는 FIT 활동 파일
+/samples/*
+!/samples/.gitkeep
+
+# Go 빌드 산출물
+/bin/
+*.test
+
+# 프런트엔드 의존성 및 빌드 산출물
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.vite/
+
+# 로컬 데이터베이스 및 환경 설정
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example
