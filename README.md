@@ -30,7 +30,7 @@ Garmin 등에서 내보낸 **FIT 운동 기록 파일**을 업로드해서 분�
 - Go 표준 라이브러리 `net/http` 기반 HTTP API (필요하면 `chi`로 라우팅 확장)
 - [`github.com/muktihari/fit`](https://github.com/muktihari/fit): FIT 파싱 후보
 - `encoding/json`: JSON 직렬화
-- PostgreSQL 저장 (Go `database/sql` 호환 드라이버 검토)
+- PostgreSQL, `database/sql` 기반 [`pgx`](https://github.com/jackc/pgx) 드라이버
 - `net/http` 미들웨어 또는 필요에 따라 별도 패키지 사용
 
 **Frontend**
@@ -71,7 +71,7 @@ fit-lab/
 
 ### 백엔드 실행
 
-`.env.example`을 복사해 `.env`를 만들고 필요한 값을 설정합니다. 서버는 `.env`를 읽으며, 셸에서 이미 설정한 환경 변수는 그대로 사용합니다.
+`.env.example`을 복사해 `.env`를 만들고 접속 정보를 설정합니다. 서버는 현재 디렉터리에서 저장소 루트까지 `.env`를 찾으며, 셸에서 이미 설정한 환경 변수는 그대로 사용합니다. 다른 위치의 파일은 `ENV_FILE=/path/to/.env`로 지정할 수 있습니다. 서버를 실행하기 전에 PostgreSQL을 켜거나 SSH 터널을 먼저 엽니다.
 
 ```bash
 cp .env.example .env
@@ -84,18 +84,20 @@ go run ./cmd/server
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev
 # 기본 주소: http://localhost:5173
 ```
 
-개발 중에는 Vite의 프록시 설정으로 `/api` 및 `/healthz` 요청을 백엔드(`localhost:3000`)로 전달합니다. 현재 서버는 `.env`의 `HTTP_ADDR` 설정과 `/healthz` 상태 확인을 제공합니다. `DATABASE_URL`은 PostgreSQL 연결 구현 시 사용할 설정 예시이며 DB 연결은 아직 구현되지 않았습니다. 업로드 화면도 기본 UI 단계입니다.
+프런트엔드 테스트는 `cd frontend && pnpm test`로 실행하고, 변경 감시 모드는 `pnpm test:watch`로 시작합니다.
+
+개발 중에는 Vite의 프록시 설정으로 `/api`, `/healthz`, `/readyz` 요청을 백엔드(`localhost:3000`)로 전달합니다. 서버는 `.env`의 `HTTP_ADDR`, `DATABASE_URL`을 읽고 시작 시 PostgreSQL 연결을 확인합니다. `/healthz`는 서버 상태를, `/readyz`는 DB 연결을 확인합니다. PostgreSQL 터널을 사용하는 경우 서버를 실행하기 전에 SSH 터널을 열어 두세요. 업로드 화면은 기본 UI 단계입니다.
 
 ## API 초안
 
 | 메서드 | 경로 | 설명 |
 | --- | --- | --- |
-| `POST` | `/api/activities` | FIT 파일 업로드 (`multipart/form-data`), 파싱 후 저장 |
+| `POST` | `/api/activities` | FIT 파일 수신 (`multipart/form-data`, `file` 필드, 최대 25MB). 현재는 파일명과 크기를 반환하며 파싱·저장은 아직 하지 않음 |
 | `GET` | `/api/activities` | 활동 목록 (요약 정보) |
 | `GET` | `/api/activities/:id` | 활동 상세 (요약 + 레코드) |
 | `GET` | `/api/activities/:id/records?downsample=N` | 초 단위 레코드, 다운샘플링 옵션 |
