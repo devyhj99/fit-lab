@@ -18,9 +18,9 @@ Garmin 등에서 내보낸 **FIT 운동 기록 파일**을 업로드해서 분�
 
 | 단계 | 기능 | 상태 |
 | --- | --- | --- |
-| 1 | FIT 업로드 → 파싱 → JSON 반환, 심박/페이스 차트 | ⬜ |
+| 1 | FIT 업로드 → 파싱 → JSON 반환, uPlot 차트 및 지도 경로 표시 (MVP) | ⬜ |
 | 2 | PostgreSQL 저장, 활동 목록/상세 조회 | ⬜ |
-| 3 | 지도 경로 표시, 심박존 분포 | ⬜ |
+| 3 | 심박존 체류 분포, 구간 통계 분석 | ⬜ |
 | 4 | 주간 집계, 훈련 부하, 활동 간 비교 | ⬜ |
 | 5 | (선택) FIT 편집/변환, 이상치 탐지 등 | ⬜ |
 
@@ -28,16 +28,15 @@ Garmin 등에서 내보낸 **FIT 운동 기록 파일**을 업로드해서 분�
 
 **Backend**
 - Go 표준 라이브러리 `net/http` 기반 HTTP API (필요하면 `chi`로 라우팅 확장)
-- [`github.com/muktihari/fit`](https://github.com/muktihari/fit): FIT 파싱 후보
+- [`github.com/muktihari/fit`](https://github.com/muktihari/fit): FIT 파싱
 - `encoding/json`: JSON 직렬화
 - PostgreSQL, `database/sql` 기반 [`pgx`](https://github.com/jackc/pgx) 드라이버
-- `net/http` 미들웨어 또는 필요에 따라 별도 패키지 사용
 
 **Frontend**
 - React + Vite + TypeScript
 - TanStack Query: 데이터 패칭
-- 차트: Recharts 또는 uPlot (포인트가 많을 경우)
-- 지도: react-leaflet 또는 MapLibre GL
+- 시계열 차트: [uPlot](https://github.com/leeoniya/uPlot) (대용량 1초 시계열 고성능 렌더링)
+- 지도: Leaflet ([`react-leaflet`](https://react-leaflet.js.org/), OpenStreetMap)
 
 ## 프로젝트 구조
 
@@ -139,9 +138,9 @@ pnpm dev
 
 세부 기술 스펙과 검증 계획은 [구현 로드맵 문서](docs/roadmap.md)를 참고한다.
 
-- [ ] 1단계: 업로드 엔드포인트 + 파싱 + 차트 하나
+- [ ] 1단계: 업로드 엔드포인트 + 파싱 + uPlot 차트 + Leaflet 지도 경로 MVP
 - [ ] 2단계: DB 저장, 활동 목록/상세
-- [ ] 3단계: 지도, 심박존 분포
+- [ ] 3단계: 심박존 체류 분포, 구간 통계 분석
 - [ ] 4단계: 주간 집계, 훈련 부하(TRIMP/TSS), 활동 비교
 - [ ] 5단계: FIT → GPX/CSV 변환, GPS 튀는 값 보정, 이상치 탐지
 
