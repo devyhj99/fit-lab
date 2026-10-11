@@ -5,6 +5,9 @@
 # Go 빌드 산출물
 /bin/
 *.test
+coverage.out
+*.prof
+*.pprof
 
 # 프런트엔드 의존성 및 빌드 산출물
 /frontend/node_modules/
@@ -19,3 +22,9 @@
 .env
 .env.*
 !.env.example
+
+# IDE
+/.idea/
+
+# macOS 메타데이터
+.DS_Store
