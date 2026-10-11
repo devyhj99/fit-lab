@@ -1,9 +1,9 @@
 # FIT Lab
 
-Garmin 등에서 내보낸 **FIT 운동 기록 파일**을 업로드해서 분석하고 시각화하는 웹 애플리케이션입니다.
-백엔드는 **Go**, 프론트엔드는 **React (Vite + TypeScript)** 로 구성합니다.
+Garmin 등에서 내보낸 **FIT 운동 기록 파일**을 업로드해서 분석하고 시각화하는 웹 애플리케이션이다.
+백엔드는 **Go**, 프론트엔드는 **React (Vite + TypeScript)** 로 구성한다.
 
-> 🚧 개발 초기 단계입니다. 아래 로드맵 순서대로 기능을 늘려갈 예정입니다.
+> 🚧 개발 초기 단계다. 아래 로드맵 순서대로 기능을 늘려갈 예정이다.
 
 ---
 
@@ -44,10 +44,12 @@ Garmin 등에서 내보낸 **FIT 운동 기록 파일**을 업로드해서 분�
 ```
 fit-lab/
 ├── cmd/server/main.go       # Go 서버 진입점
+├── docs/                    # 설계 및 스키마 문서
 ├── internal/
-│   ├── http/handler.go      # API 핸들러와 라우팅
-│   ├── fit/                 # FIT 파싱 및 내부 모델 정규화
 │   ├── analysis/            # 심박존, 부하, 페이스 계산
+│   ├── config/              # 환경 변수 및 설정 로딩
+│   ├── fit/                 # FIT 파싱 및 내부 모델 정규화
+│   ├── http/handler.go      # API 핸들러와 라우팅
 │   └── store/               # 저장소 인터페이스 및 DB 구현
 ├── migrations/              # DB 마이그레이션
 ├── samples/                 # 로컬 FIT 파일 (Git 제외)
@@ -71,13 +73,15 @@ fit-lab/
 
 ### 백엔드 실행
 
-`.env.example`을 복사해 `.env`를 만들고 접속 정보를 설정합니다. 서버는 현재 디렉터리에서 저장소 루트까지 `.env`를 찾으며, 셸에서 이미 설정한 환경 변수는 그대로 사용합니다. 다른 위치의 파일은 `ENV_FILE=/path/to/.env`로 지정할 수 있습니다. 서버를 실행하기 전에 PostgreSQL을 켜거나 SSH 터널을 먼저 엽니다.
+1. **환경 변수 설정**: `.env.example`을 복사해 `.env`를 생성하고 DB 접속 정보를 설정한다. (다른 경로는 `ENV_FILE`로 지정)
+2. **DB 준비**: PostgreSQL 서버를 구동하거나 SSH 터널을 연결한다.
+3. **서버 구동**:
 
 ```bash
 cp .env.example .env
 go run ./cmd/server
 # 기본 주소: http://localhost:3000
-# 상태 확인: http://localhost:3000/healthz
+# 상태 확인: http://localhost:3000/healthz (서버), /readyz (DB 연결)
 ```
 
 ### 프론트엔드 실행
@@ -89,18 +93,19 @@ pnpm dev
 # 기본 주소: http://localhost:5173
 ```
 
-프런트엔드 테스트는 `cd frontend && pnpm test`로 실행하고, 변경 감시 모드는 `pnpm test:watch`로 시작합니다.
-
-개발 중에는 Vite의 프록시 설정으로 `/api`, `/healthz`, `/readyz` 요청을 백엔드(`localhost:3000`)로 전달합니다. 서버는 `.env`의 `HTTP_ADDR`, `DATABASE_URL`을 읽고 시작 시 PostgreSQL 연결을 확인합니다. `/healthz`는 서버 상태를, `/readyz`는 DB 연결을 확인합니다. PostgreSQL 터널을 사용하는 경우 서버를 실행하기 전에 SSH 터널을 열어 두세요. 업로드 화면은 기본 UI 단계입니다.
+- **테스트**: `pnpm test` (실행), `pnpm test:watch` (감시 모드)
+- **개발 프록시**: Vite가 `/api`, `/healthz`, `/readyz` 요청을 백엔드(`localhost:3000`)로 전달한다.
 
 ## API 초안
 
 | 메서드 | 경로 | 설명 |
 | --- | --- | --- |
-| `POST` | `/api/activities` | FIT 파일 수신 (`multipart/form-data`, `file` 필드, 최대 25MB). 현재는 파일명과 크기를 반환하며 파싱·저장은 아직 하지 않음 |
+| `GET` | `/healthz` | 서버 상태 확인 (Liveness) |
+| `GET` | `/readyz` | PostgreSQL 연결 확인 (Readiness) |
+| `POST` | `/api/activities` | FIT 파일 수신 (`multipart/form-data`, `file` 필드, 최대 25MB) |
 | `GET` | `/api/activities` | 활동 목록 (요약 정보) |
 | `GET` | `/api/activities/:id` | 활동 상세 (요약 + 레코드) |
-| `GET` | `/api/activities/:id/records?downsample=N` | 초 단위 레코드, 다운샘플링 옵션 |
+| `GET` | `/api/activities/:id/records?downsample=N` | 초 단위 레코드 (다운샘플링 지원) |
 | `DELETE` | `/api/activities/:id` | 활동 삭제 |
 
 ### 응답 예시 (활동 요약)
@@ -119,16 +124,16 @@ pnpm dev
 
 ## 설계 메모
 
-- **좌표 변환**: FIT의 GPS 좌표는 semicircle 단위입니다. 도(degree)로 변환하려면 `semicircles * (180 / 2^31)` 을 사용합니다.
-- **정규화 계층**: 기기마다 필드 유무와 단위가 달라서, 파싱 결과를 `Activity`, `Record` 같은 내부 구조체로 변환해 사용합니다. 없는 필드는 포인터 또는 명시적인 nullable 타입으로 표현합니다.
-- **다운샘플링**: 초 단위 기록은 수천~수만 포인트가 될 수 있어, 상세 화면용 API에서 간격 조정 옵션을 제공합니다.
-- **파싱 부하**: 요청 취소와 제한 시간을 고려해 처리하고, 큰 파일은 업로드 크기 제한과 메모리 사용량을 관리합니다.
-- **저장 전략**: PostgreSQL에 활동 요약과 레코드를 저장합니다. 초 단위 레코드는 데이터량과 조회 패턴을 확인해 전체 행 저장, 다운샘플링, 압축 저장 중 결정합니다.
+- **좌표 변환**: FIT semicircle 좌표를 도(degree)로 변환: `semicircles * (180 / 2^31)`
+- **정규화 계층**: 기기별 필드 차이를 `Activity`, `Record` 등 공통 내부 모델로 변환 (누락 필드는 nullable 처리)
+- **다운샘플링**: 대용량 초 단위 기록 조회를 위한 간격 조정 옵션 제공
+- **부하 관리**: 업로드 크기 제한(최대 25MB) 및 요청 타임아웃 적용
+- **저장 전략**: 활동 요약과 시계열 레코드를 PostgreSQL에 분리 저장하며, 데이터량에 따라 다운샘플링/압축 저장 검토
 
 ## 테스트 데이터
 
-- 본인의 기기에서 내보낸 `.fit` 파일을 `samples/` 폴더에 넣어 사용합니다.
-- 개인 위치 정보가 포함되어 있으므로 **샘플 파일은 Git에 커밋하지 않습니다.** (`.gitignore`에 `samples/` 추가)
+- 본인의 기기에서 내보낸 `.fit` 파일을 `samples/` 폴더에 넣어 사용한다.
+- 개인 위치 정보가 포함되어 있으므로 **샘플 파일은 Git에 커밋하지 않는다.** (`.gitignore`에 `samples/` 추가)
 
 ## 로드맵
 
