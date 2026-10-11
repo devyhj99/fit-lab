@@ -1,4 +1,4 @@
--- PostgreSQL 초기 FIT 활동 스키마
+-- PostgreSQL 초기 활동 데이터 스키마 (FIT 및 GPX)
 -- 이 파일은 DDL 초안입니다. 백업과 적용 환경을 확인한 뒤 명시적으로 실행하세요.
 -- 롤백은 core 스키마 DROP 대신 백업 복원 또는 별도 보정 migration으로 처리합니다.
 -- DATABASE_URL이 선택한 fitlab 데이터베이스 안에 core 스키마를 만듭니다. 데이터베이스는 별도 생성합니다.
@@ -7,8 +7,9 @@
 
 CREATE SCHEMA IF NOT EXISTS core;
 
-CREATE TABLE core.fit_files (
+CREATE TABLE core.activity_files (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source_format text NOT NULL, -- 내용 검사 결과: fit 또는 gpx
     sha256 char(64) NOT NULL UNIQUE,
     storage_key text, -- 원본 보관을 끄면 NULL
     original_filename text NOT NULL,
@@ -22,7 +23,7 @@ CREATE TABLE core.fit_files (
 
 CREATE TABLE core.activities (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    fit_file_id bigint NOT NULL REFERENCES core.fit_files(id) ON DELETE RESTRICT,
+    source_file_id bigint NOT NULL REFERENCES core.activity_files(id) ON DELETE RESTRICT,
     file_activity_no integer NOT NULL,
     name text,
     sport text,
@@ -41,7 +42,7 @@ CREATE TABLE core.activities (
     max_power_w integer,
     calories integer,
     created_at timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (fit_file_id, file_activity_no)
+    UNIQUE (source_file_id, file_activity_no)
 );
 
 CREATE TABLE core.sessions (
@@ -91,7 +92,7 @@ CREATE TABLE core.laps (
         REFERENCES core.sessions(activity_id, id) ON DELETE CASCADE
 );
 
--- 한 행은 한 FIT record 표본입니다. 누락되거나 FIT에서 제공되지 않은 값은 NULL입니다.
+-- 한 행은 트랙의 표본 하나입니다. 누락되거나 원본에서 제공되지 않은 값은 NULL입니다.
 CREATE TABLE core.records (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     activity_id bigint NOT NULL REFERENCES core.activities(id) ON DELETE CASCADE,
@@ -108,9 +109,8 @@ CREATE TABLE core.records (
     cadence_rpm double precision,
     power_w integer,
     temperature_c double precision,
-    extra_fields jsonb NOT NULL DEFAULT '{}'::jsonb,
+    extra_fields jsonb NOT NULL DEFAULT '{}'::jsonb, -- FIT 개발자 필드 및 GPX extensions 등
     UNIQUE (activity_id, record_no),
-    UNIQUE (activity_id, session_id, record_no),
     FOREIGN KEY (activity_id, session_id)
         REFERENCES core.sessions(activity_id, id) ON DELETE CASCADE
 );
