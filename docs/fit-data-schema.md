@@ -176,10 +176,11 @@ erDiagram
 - **사용자 구간**: 장치 랩과 구분되는 분석/계산 인터벌(`activity_intervals`)
 - **파생 지표**: TRIMP, VO₂max 등 훈련 지표(`activity_metrics`) 및 파워/페이스 베스트 기록(`activity_best_efforts`)
 - **메타데이터**: 장비(`activity_gear`), 태그(`activity_tags`), 날씨(`activity_weather`)
+- **수집 출처 메타데이터**: 수동 웹 업로드, Dropbox Webhook(HealthFit) 등 수집 경로 추적(`source_channel`)
 - **파싱 이력**: 다중 파서 버전 재처리 추적용 `parse_runs`
 
 ## 구현 순서
 
 1. 초기 스키마 마이그레이션 (`0001_initial_activity_schema.up.sql`)
-2. FIT/GPX 파싱 및 DB 저장 계층 구현 (비정상/누락 데이터 테스트 포함)
+2. FIT/GPX 파싱 및 DB 저장 계층 구현 (Dropbox Webhook 자동 수집 연동 포함)
 3. 분석 및 부가 기능 개발 시 확장 테이블 마이그레이션 추가

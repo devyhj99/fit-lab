@@ -43,28 +43,35 @@ flowchart LR
 
 ---
 
-## 💾 2단계: PostgreSQL 저장소 연동 및 활동 관리
+## 💾 2단계: PostgreSQL 저장소 연동 및 활동 관리 (수동 업로드 & Dropbox 자동 동기화)
 
-- **목표**: DDL 스키마에 맞춰 파싱 결과를 데이터베이스에 영속화하고, 활동 목록/상세 CRUD API를 제공한다.
+- **목표**: DDL 스키마에 맞춰 파싱 결과를 데이터베이스에 영속화하고, 활동 목록/상세 CRUD API와 **HealthFit → Dropbox Webhook 자동 수집 파이프라인**을 구축한다.
 
 ### 백엔드 (`internal/store`, `internal/http`)
 - DB 마이그레이션 적용 (`migrations/0001_initial_activity_schema.up.sql`)
 - 트랜잭션 기반 일괄 저장: `activity_files` → `activities` → `sessions` → `records` → `laps`
 - `records` 대량 삽입(Bulk Insert) 최적화
-- 활동 관리 REST API 구현:
+- **활동 관리 REST API**:
   - `GET /api/activities`: 활동 목록 (요약 지표, 페이지네이션)
   - `GET /api/activities/:id`: 활동 상세 (요약, 세션, 랩)
   - `GET /api/activities/:id/records?downsample=N`: 레코드 간격 다운샘플링 조회
   - `DELETE /api/activities/:id`: 활동 및 시계열 레코드 연쇄 삭제
+- **Dropbox Webhook 연동 (HealthFit 자동 수집 파이프라인)**:
+  - `GET /api/webhooks/dropbox`: Webhook Challenge 검증 (echo 반환)
+  - `POST /api/webhooks/dropbox`: `X-Dropbox-Signature` (HMAC-SHA256) 검증 및 변경 알림 수신
+  - 백그라운드 동기화 워커: Dropbox API(`/2/files/list_folder/continue`)로 새로 동기화된 `.fit` 파일 다운로드
+  - 파일 파싱 및 DB 적재: 기존 파이프라인을 공유하며 `activity_files.sha256` 유일 제약으로 중복 파일 자동 무시
 
 ### 프론트엔드 (`frontend/src`)
 - TanStack Query(`@tanstack/react-query`) 도입으로 서버 상태 캐싱
-- 활동 목록 화면 (카드/테이블 뷰)
+- 활동 목록 화면 (카드/테이블 뷰, 수동 업로드 및 Dropbox 자동 수집 활동 통합 표시)
 - 활동 상세 화면 (다운샘플링 옵션 지원)
 
 ### 검증 기준
 - [ ] 대량 시계열 레코드 저장 및 다운샘플링 조회 응답 속도 검증
 - [ ] 활동 목록, 상세 조회, 삭제 기능의 통합 테스트 통과
+- [ ] Dropbox Webhook 서명 검증 및 Challenge 핸드셰이크 테스트 통과
+- [ ] HealthFit 동기화 파일 수신 시 백그라운드 파싱 및 중복 방지(SHA-256) 적재 검증
 
 ---
 
