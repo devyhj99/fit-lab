@@ -169,9 +169,12 @@ erDiagram
   - `activities`: `started_at DESC`, `(sport, started_at DESC)`
   - `records`: `(activity_id, recorded_at)`, `(activity_id, session_id, record_no)`
   - `laps`: `(activity_id, session_id)`
+- **히트맵 조회 최적화 고려사항**:
+  - 다중 활동 누적 히트맵(`GET /api/activities/heatmap`) 조회 시 `records`에서 GPS 유효 좌표(`latitude_deg IS NOT NULL AND longitude_deg IS NOT NULL`)만 스캔하므로, 필요 시 `(activity_id, record_no) WHERE latitude_deg IS NOT NULL AND longitude_deg IS NOT NULL` 부분 인덱스(Partial Index)를 추가할 수 있다.
 
 ## 후속 확장 후보
 
+- **경량 경로 캐시 (`summary_polyline`)**: 누적 활동 수가 수백~수천 건 이상으로 증가할 때 `records` 테이블을 매번 조인·다운샘플링하지 않고 즉시 히트맵을 렌더링할 수 있도록, `activities` 테이블(또는 별도 경로 요약 컬럼)에 거리 기반 다운샘플링 좌표 배열이나 Google Encoded Polyline 문자열을 캐싱
 - **HRV**: RR 간격 저장을 위한 `hrv_samples`
 - **사용자 구간**: 장치 랩과 구분되는 분석/계산 인터벌(`activity_intervals`)
 - **파생 지표**: TRIMP, VO₂max 등 훈련 지표(`activity_metrics`) 및 파워/페이스 베스트 기록(`activity_best_efforts`)
@@ -182,5 +185,5 @@ erDiagram
 ## 구현 순서
 
 1. 초기 스키마 마이그레이션 (`0001_initial_activity_schema.up.sql`)
-2. FIT/GPX 파싱 및 DB 저장 계층 구현 (Dropbox Webhook 자동 수집 연동 포함)
+2. FIT/GPX 파싱 및 DB 저장 계층 구현 (Dropbox Webhook 자동 수집 및 히트맵 경로 조회 연동 포함)
 3. 분석 및 부가 기능 개발 시 확장 테이블 마이그레이션 추가
