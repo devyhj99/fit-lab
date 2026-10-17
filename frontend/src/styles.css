@@ -1,7 +1,14 @@
+@import 'tailwindcss';
+
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #202820;
-  background: #f5f7f5;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  color: #1e293b;
+  background: #f8fafc;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -19,36 +26,46 @@ body {
 }
 
 .container {
-  width: min(100% - 32px, 640px);
+  width: min(100% - 32px, 1024px);
   margin: 0 auto;
-  padding: 48px 0;
+  padding: 40px 0;
 }
 
 .header {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .header h1 {
-  margin: 0;
+  margin: 0 0 6px;
   font-size: 2rem;
+  color: #0f172a;
 }
 
 .header p,
 .note {
-  color: #657065;
+  color: #64748b;
+  margin: 0;
 }
 
 .card {
   margin: 16px 0;
-  padding: 20px;
-  border: 1px solid #dce3dc;
-  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .card h2 {
   margin: 0 0 16px;
+  font-size: 1.25rem;
+  color: #0f172a;
+}
+
+.card h3 {
+  margin: 0 0 16px;
   font-size: 1.1rem;
+  color: #1e293b;
 }
 
 .card label {
@@ -57,47 +74,30 @@ body {
   font-weight: 600;
 }
 
-input[type="file"] {
-  display: block;
-  max-width: 100%;
-}
-
-.file-name {
-  overflow-wrap: anywhere;
-}
-
-.note {
-  margin-bottom: 0;
-  font-size: 0.9rem;
-}
-
-@media (max-width: 480px) {
-  .container {
-    padding-top: 28px;
-  }
-}
-
 .dropzone {
-  padding: 28px 16px;
-  border: 2px dashed #b9c7b9;
+  padding: 32px 16px;
+  border: 2px dashed #cbd5e1;
   border-radius: 8px;
-  background: #fafcfa;
+  background: #f8fafc;
   text-align: center;
+  transition: all 0.15s ease-in-out;
 }
 
 .dropzone-active {
-  border-color: #367347;
-  background: #eef6ef;
+  border-color: #2563eb;
+  background: #eff6ff;
 }
 
 .dropzone p {
   margin: 0 0 12px;
+  color: #475569;
 }
 
 .file-picker {
   display: inline-block !important;
   margin: 0 !important;
-  color: #245e35;
+  color: #2563eb;
+  font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
 }
@@ -112,26 +112,288 @@ input[type="file"] {
   clip-path: inset(50%);
 }
 
-.file-picker:focus-within {
-  outline: 2px solid #367347;
-  outline-offset: 4px;
+.file-name {
+  margin: 12px 0 0;
+  color: #0f172a;
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .error {
-  color: #b42318;
+  margin-top: 12px;
+  color: #dc2626;
+  font-weight: 500;
 }
 
-button[type="submit"] {
+button[type='submit'] {
   margin-top: 16px;
-  padding: 9px 14px;
+  padding: 10px 18px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: #fff;
-  background: #245e35;
+  background: #2563eb;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+button[type='submit']:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+button[type='submit']:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* 활동 요약 카드 */
+.summary-card {
+  margin-top: 8px;
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sport-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #dbeafe;
+  letter-spacing: 0.05em;
+}
+
+.activity-date {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+/* 요약 카드 핵심 지표 (거리, 시간, 페이스, 심박수) */
+.summary-primary-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 18px 20px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.stat-item.primary .stat-label {
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.primary-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1e3a8a;
+  letter-spacing: -0.02em;
+}
+
+/* 요약 카드 보조 지표 (최대 심박수, 고도, 칼로리) */
+.summary-secondary-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 0 4px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* 시계열 차트 카드 */
+.chart-card {
+  margin-top: 20px;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-toggle {
+  padding: 6px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-toggle.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+  font-weight: 600;
+}
+
+.uplot-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* 지도 카드 */
+.map-card {
+  margin-top: 20px;
+}
+
+.map-view {
+  width: 100%;
+  height: 400px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+}
+
+.map-empty-card {
+  text-align: center;
+  padding: 24px;
+}
+
+/* 구간별 상세 분석 테이블 */
+.splits-card {
+  margin-top: 20px;
+}
+
+.splits-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.splits-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.splits-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.splits-table th {
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.splits-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.splits-table tr:hover,
+.splits-table tr.row-hovered {
+  background: #eff6ff;
   cursor: pointer;
 }
 
-button[type="submit"]:disabled {
-  background: #9aa79c;
-  cursor: not-allowed;
+.col-split {
+  color: #2563eb;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.pace-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pace-diff {
+  font-size: 0.75rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.pace-diff.pace-faster {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pace-diff.pace-slower {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .summary-primary-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 20px 0;
+  }
+  .summary-primary-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+  .summary-secondary-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .map-view {
+    height: 300px;
+  }
 }

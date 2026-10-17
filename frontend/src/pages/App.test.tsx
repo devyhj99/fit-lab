@@ -53,10 +53,7 @@ describe('FIT 파일 업로드 화면', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.upload(
-      screen.getByLabelText('또는 파일 선택'),
-      new File(['fit'], 'RIDE.FIT'),
-    )
+    await user.upload(screen.getByLabelText('또는 파일 선택'), new File(['fit'], 'RIDE.FIT'))
 
     expect(screen.getByText('선택한 파일: RIDE.FIT')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -102,33 +99,87 @@ describe('FIT 파일 업로드 화면', () => {
 
   it('선택한 FIT 파일을 API로 전송하고 응답을 표시한다', async () => {
     const user = userEvent.setup()
-    fetchMock
-      .mockResolvedValueOnce({ ok: true })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ status: 'received', filename: 'morning-run.fit', size_bytes: 8 }),
-      })
+    fetchMock.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: 'received', filename: 'morning-run.fit', size_bytes: 8 }),
+    })
     render(<App />)
 
     const file = new File(['fit data'], 'morning-run.fit', { type: 'application/octet-stream' })
     await user.upload(screen.getByLabelText('또는 파일 선택'), file)
     await user.click(screen.getByRole('button', { name: '서버로 업로드' }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent('서버가 morning-run.fit 파일을 받았습니다 (0.00 MB).')
-    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/activities', expect.objectContaining({ method: 'POST' }))
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      '서버가 morning-run.fit 파일을 받았습니다 (0.00 MB).',
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/activities',
+      expect.objectContaining({ method: 'POST' }),
+    )
   })
 
   it('업로드 API 오류를 사용자에게 표시한다', async () => {
     const user = userEvent.setup()
-    fetchMock
-      .mockResolvedValueOnce({ ok: true })
-      .mockResolvedValueOnce({ ok: false, json: async () => ({ error: '업로드 파일은 25MB 이하여야 합니다.' }) })
+    fetchMock.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: '업로드 파일은 25MB 이하여야 합니다.' }),
+    })
     render(<App />)
 
     const file = new File(['fit data'], 'large.fit', { type: 'application/octet-stream' })
     await user.upload(screen.getByLabelText('또는 파일 선택'), file)
     await user.click(screen.getByRole('button', { name: '서버로 업로드' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('업로드 파일은 25MB 이하여야 합니다.')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '업로드 파일은 25MB 이하여야 합니다.',
+    )
+  })
+
+  it('파싱 완료 후 활동 요약 카드, 차트, 지도를 렌더링한다', async () => {
+    const user = userEvent.setup()
+    fetchMock.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        status: 'received',
+        filename: 'run.fit',
+        size_bytes: 1024,
+        summary: {
+          sport: 'running',
+          start_time: '2026-10-03T11:08:29Z',
+          duration_sec: 1800,
+          distance_m: 5000,
+          avg_heart_rate: 150,
+        },
+        records: [
+          {
+            time: '2026-10-03T11:08:29Z',
+            elapsed_sec: 0,
+            latitude: 37.5,
+            longitude: 127.1,
+            heart_rate: 140,
+          },
+          {
+            time: '2026-10-03T11:08:30Z',
+            elapsed_sec: 1,
+            latitude: 37.51,
+            longitude: 127.11,
+            heart_rate: 142,
+          },
+        ],
+      }),
+    })
+    render(<App />)
+
+    const file = new File(['fit data'], 'run.fit', { type: 'application/octet-stream' })
+    await user.upload(screen.getByLabelText('또는 파일 선택'), file)
+    await user.click(screen.getByRole('button', { name: '서버로 업로드' }))
+
+    expect(await screen.findByTestId('activity-summary-card')).toBeInTheDocument()
+    expect(screen.getByText('5.00 km')).toBeInTheDocument()
+    expect(screen.getByText('RUNNING')).toBeInTheDocument()
+    expect(screen.getByTestId('activity-chart')).toBeInTheDocument()
+    expect(screen.getByTestId('activity-map')).toBeInTheDocument()
+    expect(screen.getByTestId('activity-splits-table')).toBeInTheDocument()
   })
 })

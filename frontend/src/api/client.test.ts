@@ -28,13 +28,15 @@ describe('활동 파일 API', () => {
   })
 
   it('오류 응답에 설명이 없으면 상태 코드로 오류를 만든다', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 413,
-      json: async () => ({}),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 413,
+        json: async () => ({}),
+      }),
+    )
 
-    await expect(uploadActivity(new File(['fit'], 'run.fit')))
-      .rejects.toThrow('업로드 실패 (413)')
+    await expect(uploadActivity(new File(['fit'], 'run.fit'))).rejects.toThrow('업로드 실패 (413)')
   })
 })
