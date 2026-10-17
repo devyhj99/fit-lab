@@ -46,6 +46,7 @@ func LoadDotEnv() error {
 	}
 }
 
+// isProjectRoot는 주어진 디렉터리에 go.mod 또는 .git 파일이 존재하는지 검사하여 프로젝트 루트 여부를 판단합니다.
 func isProjectRoot(dir string) bool {
 	for _, marker := range []string{"go.mod", ".git"} {
 		if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {

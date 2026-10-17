@@ -21,6 +21,8 @@ func main() {
 	}
 }
 
+// run은 환경 변수를 로드하고 PostgreSQL 데이터베이스 연결을 검증한 뒤 HTTP 서버를 구동합니다.
+// OS 시그널(SIGINT, SIGTERM)을 수신하면 5초 타임아웃의 안전한 graceful shutdown을 수행합니다.
 func run() error {
 	if err := config.LoadDotEnv(); err != nil {
 		return err
