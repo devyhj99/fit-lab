@@ -1,0 +1,95 @@
+name: Build, Push and Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    name: Build & Push Images to GHCR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Downcase repository owner
+        id: repo_owner
+        run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: actions/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Backend Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fit-lab-backend:latest
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fit-lab-backend:${{ github.sha }}
+
+      - name: Build & Push Frontend Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fit-lab-frontend:latest
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/fit-lab-frontend:${{ github.sha }}
+
+  deploy:
+    name: Deploy to Server
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH to server and update containers
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            cd ${{ secrets.SERVER_DEPLOY_PATH }}
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
+
+            # .env 파일에서 설정된 포트 읽기 (기본값 42195)
+            PORT=$(grep -E '^FRONTEND_PORT=' .env | cut -d '=' -f2 | tr -d ' "\r')
+            PORT=${PORT:-42195}
+
+            echo "Waiting for services to become healthy on port $PORT..."
+            SUCCESS=0
+            for i in $(seq 1 15); do
+              if curl -s -f "http://localhost:$PORT/readyz" > /dev/null; then
+                echo "Healthcheck passed! Service is ready."
+                SUCCESS=1
+                break
+              fi
+              echo "Attempt $i/15: service not ready yet, retrying in 2s..."
+              sleep 2
+            done
+
+            if [ $SUCCESS -ne 1 ]; then
+              echo "Deployment failed: Healthcheck timed out!"
+              echo "=== Recent Backend Logs ==="
+              docker compose logs backend --tail=50
+              echo "=== Recent Frontend Logs ==="
+              docker compose logs frontend --tail=50
+              exit 1
+            fi
