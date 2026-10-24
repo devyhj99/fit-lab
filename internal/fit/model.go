@@ -14,10 +14,15 @@ type LapData struct {
 	LapIndex        int       `json:"lap_index"`
 	StartTime       time.Time `json:"start_time"`
 	DurationSec     float64   `json:"duration_sec"`
+	MovingTimeSec   *float64  `json:"moving_time_sec,omitempty"`
 	DistanceM       float64   `json:"distance_m"`
+	AvgSpeedMps     *float64  `json:"avg_speed_mps,omitempty"`
+	MaxSpeedMps     *float64  `json:"max_speed_mps,omitempty"`
 	AvgPaceSecPerKm *float64  `json:"avg_pace_sec_per_km,omitempty"`
 	AvgHeartRate    *int      `json:"avg_heart_rate,omitempty"`
 	MaxHeartRate    *int      `json:"max_heart_rate,omitempty"`
+	AvgCadence      *float64  `json:"avg_cadence,omitempty"`
+	AvgPower        *int      `json:"avg_power,omitempty"`
 	ElevationGainM  *float64  `json:"elevation_gain_m,omitempty"`
 	Calories        *int      `json:"calories,omitempty"`
 	LapTrigger      string    `json:"lap_trigger,omitempty"`
@@ -26,6 +31,7 @@ type LapData struct {
 
 // ActivitySummary는 활동 전반의 통계 및 요약 정보입니다.
 type ActivitySummary struct {
+	WorkoutName     string    `json:"workout_name,omitempty"`
 	Sport           string    `json:"sport"`
 	SubSport        string    `json:"sub_sport,omitempty"`
 	StartTime       time.Time `json:"start_time"`
@@ -38,6 +44,10 @@ type ActivitySummary struct {
 	AvgSpeedMps     *float64  `json:"avg_speed_mps,omitempty"`
 	MaxSpeedMps     *float64  `json:"max_speed_mps,omitempty"`
 	AvgPaceSecPerKm *float64  `json:"avg_pace_sec_per_km,omitempty"`
+	AvgCadence      *float64  `json:"avg_cadence,omitempty"`
+	MaxCadence      *float64  `json:"max_cadence,omitempty"`
+	AvgPower        *int      `json:"avg_power,omitempty"`
+	MaxPower        *int      `json:"max_power,omitempty"`
 	Calories        *int      `json:"calories,omitempty"`
 }
 

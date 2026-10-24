@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/muktihari/fit/decoder"
@@ -26,6 +27,7 @@ func Parse(r io.Reader) (*ActivityData, error) {
 	}
 
 	var session *mesgdef.Session
+	var workout *mesgdef.Workout
 	var records []*mesgdef.Record
 	var laps []*mesgdef.Lap
 
@@ -35,6 +37,10 @@ func Parse(r io.Reader) (*ActivityData, error) {
 		case typedef.MesgNumSession:
 			if session == nil {
 				session = mesgdef.NewSession(mesg)
+			}
+		case typedef.MesgNumWorkout:
+			if workout == nil {
+				workout = mesgdef.NewWorkout(mesg)
 			}
 		case typedef.MesgNumRecord:
 			records = append(records, mesgdef.NewRecord(mesg))
@@ -60,7 +66,7 @@ func Parse(r io.Reader) (*ActivityData, error) {
 		points = append(points, point)
 	}
 
-	summary := buildSummary(session, points, startTime)
+	summary := buildSummary(session, workout, points, startTime)
 	lapDataList := convertLaps(laps)
 
 	return &ActivityData{
@@ -141,10 +147,17 @@ func convertRecord(r *mesgdef.Record, activityStart time.Time) RecordPoint {
 
 // buildSummary는 세션 메시지와 시계열 레코드를 조합하여 활동 전반의 통계 요약(ActivitySummary)을 생성합니다.
 // 세션 메시지에 시간이나 거리가 없을 경우 레코드 목록을 역방향 순회하여 누적 거리를 폴백(fallback) 계산합니다.
-func buildSummary(session *mesgdef.Session, records []RecordPoint, startTime time.Time) ActivitySummary {
+func buildSummary(session *mesgdef.Session, workout *mesgdef.Workout, records []RecordPoint, startTime time.Time) ActivitySummary {
 	summary := ActivitySummary{
 		Sport:     "generic",
 		StartTime: startTime,
+	}
+
+	if workout != nil {
+		wktName := strings.TrimSpace(strings.TrimRight(workout.WktName, "\x00"))
+		if wktName != "" {
+			summary.WorkoutName = wktName
+		}
 	}
 
 	if session != nil {
@@ -201,6 +214,24 @@ func buildSummary(session *mesgdef.Session, records []RecordPoint, startTime tim
 			summary.MaxSpeedMps = &maxSpeed
 		}
 
+		if session.AvgCadence > 0 && session.AvgCadence < 255 {
+			avgCad := float64(session.AvgCadence)
+			summary.AvgCadence = &avgCad
+		}
+		if session.MaxCadence > 0 && session.MaxCadence < 255 {
+			maxCad := float64(session.MaxCadence)
+			summary.MaxCadence = &maxCad
+		}
+
+		if session.AvgPower > 0 && session.AvgPower < 65535 {
+			avgPow := int(session.AvgPower)
+			summary.AvgPower = &avgPow
+		}
+		if session.MaxPower > 0 && session.MaxPower < 65535 {
+			maxPow := int(session.MaxPower)
+			summary.MaxPower = &maxPow
+		}
+
 		if session.TotalCalories > 0 && session.TotalCalories < 65535 {
 			cal := int(session.TotalCalories)
 			summary.Calories = &cal
@@ -252,6 +283,11 @@ func convertLaps(laps []*mesgdef.Lap) []LapData {
 			DistanceM:   dist,
 		}
 
+		moving := lap.TotalMovingTimeScaled()
+		if !math.IsNaN(moving) && moving > 0 {
+			item.MovingTimeSec = &moving
+		}
+
 		if lap.LapTrigger != typedef.LapTriggerInvalid {
 			item.LapTrigger = lap.LapTrigger.String()
 		}
@@ -270,9 +306,22 @@ func convertLaps(laps []*mesgdef.Lap) []LapData {
 			item.MaxHeartRate = &maxHr
 		}
 
+		if lap.AvgCadence > 0 && lap.AvgCadence < 255 {
+			avgCad := float64(lap.AvgCadence)
+			item.AvgCadence = &avgCad
+		}
+
+		if lap.AvgPower > 0 && lap.AvgPower < 65535 {
+			avgPow := int(lap.AvgPower)
+			item.AvgPower = &avgPow
+		}
+
 		avgSpeed := lap.EnhancedAvgSpeedScaled()
 		if math.IsNaN(avgSpeed) || avgSpeed <= 0 {
 			avgSpeed = lap.AvgSpeedScaled()
+		}
+		if !math.IsNaN(avgSpeed) && avgSpeed > 0 {
+			item.AvgSpeedMps = &avgSpeed
 		}
 		if !math.IsNaN(avgSpeed) && avgSpeed > 0.1 {
 			pace := 1000.0 / avgSpeed
@@ -280,6 +329,14 @@ func convertLaps(laps []*mesgdef.Lap) []LapData {
 		} else if dist > 50 && dur > 0 {
 			pace := (dur / dist) * 1000.0
 			item.AvgPaceSecPerKm = &pace
+		}
+
+		maxSpeed := lap.EnhancedMaxSpeedScaled()
+		if math.IsNaN(maxSpeed) || maxSpeed <= 0 {
+			maxSpeed = lap.MaxSpeedScaled()
+		}
+		if !math.IsNaN(maxSpeed) && maxSpeed > 0 {
+			item.MaxSpeedMps = &maxSpeed
 		}
 
 		elevGain := float64(lap.TotalAscent)
