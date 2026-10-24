@@ -53,7 +53,7 @@ jobs:
       - name: pnpm 패키지 매니저 설치
         uses: pnpm/action-setup@v4
         with:
-          version: latest
+          version: 12.5.1
           run_install: false
 
       - name: Node.js 환경 설정 (최신 LTS v24)
