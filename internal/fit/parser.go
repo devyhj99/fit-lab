@@ -136,7 +136,6 @@ func convertRecord(r *mesgdef.Record, activityStart time.Time) RecordPoint {
 		point.Temperature = &temp
 	}
 
-
 	return point
 }
 
@@ -251,6 +250,10 @@ func convertLaps(laps []*mesgdef.Lap) []LapData {
 			StartTime:   lap.StartTime,
 			DurationSec: dur,
 			DistanceM:   dist,
+		}
+
+		if lap.LapTrigger != typedef.LapTriggerInvalid {
+			item.LapTrigger = lap.LapTrigger.String()
 		}
 
 		if lap.Intensity != typedef.IntensityInvalid {

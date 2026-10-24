@@ -20,6 +20,7 @@ type LapData struct {
 	MaxHeartRate    *int      `json:"max_heart_rate,omitempty"`
 	ElevationGainM  *float64  `json:"elevation_gain_m,omitempty"`
 	Calories        *int      `json:"calories,omitempty"`
+	LapTrigger      string    `json:"lap_trigger,omitempty"`
 	Intensity       string    `json:"intensity,omitempty"`
 }
 

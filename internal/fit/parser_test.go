@@ -54,6 +54,13 @@ func TestParseSampleFIT(t *testing.T) {
 	if !hasHR {
 		t.Errorf("expected at least one record with valid heart rate")
 	}
+
+	if len(activity.Laps) == 0 {
+		t.Fatalf("expected non-empty laps")
+	}
+	if activity.Laps[0].LapTrigger == "" {
+		t.Errorf("expected lap_trigger to be populated, got empty string")
+	}
 }
 
 func TestParseInvalidInputs(t *testing.T) {
