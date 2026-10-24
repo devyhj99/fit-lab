@@ -1,7 +1,9 @@
-name: Build, Push and Deploy
+name: CI/CD Pipeline
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -10,8 +12,67 @@ permissions:
   packages: write
 
 jobs:
+  # 1. 백엔드 테스트 및 검증 (CI)
+  test-backend:
+    name: Backend Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Run Backend Tests
+        run: go test -v ./...
+
+      - name: Build Backend
+        run: go build -v ./cmd/server
+
+  # 2. 프론트엔드 린트, 테스트 및 빌드 검증 (CI)
+  test-frontend:
+    name: Frontend Lint, Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Run Tests
+        run: pnpm test
+
+      - name: Build Frontend
+        run: pnpm build
+
+  # 3. Docker 이미지 빌드 및 GHCR 푸시 (main 브랜치 푸시 및 CI 통과 시에만 실행)
   build-and-push:
     name: Build & Push Images to GHCR
+    needs: [test-backend, test-frontend]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -51,6 +112,7 @@ jobs:
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/fit-lab-frontend:latest
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/fit-lab-frontend:${{ github.sha }}
 
+  # 4. 서버 배포 및 헬스체크 검증 (이미지 푸시 완료 후 실행)
   deploy:
     name: Deploy to Server
     needs: build-and-push
@@ -69,7 +131,6 @@ jobs:
             docker compose up -d --remove-orphans
             docker image prune -f
 
-            # .env 파일에서 설정된 포트 읽기 (기본값 42195)
             PORT=$(grep -E '^FRONTEND_PORT=' .env | cut -d '=' -f2 | tr -d ' "\r')
             PORT=${PORT:-42195}
 
