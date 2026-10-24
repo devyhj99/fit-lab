@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import ActivitySummaryCard, {
+import ActivitySummaryCard from './ActivitySummaryCard'
+import {
   formatDistance,
   formatDuration,
   formatPace,
-} from './ActivitySummaryCard'
+} from '../utils/formatters'
 import type { ActivitySummary } from '../api/client'
 
 describe('ActivitySummaryCard', () => {

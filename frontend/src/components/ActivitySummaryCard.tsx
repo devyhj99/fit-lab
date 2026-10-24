@@ -1,28 +1,8 @@
 import type { ActivitySummary } from '../api/client'
+import { formatDistance, formatDuration, formatPace } from '../utils/formatters'
 
 interface Props {
   summary: ActivitySummary
-}
-
-export function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = Math.floor(seconds % 60)
-  if (h > 0) {
-    return `${h}시간 ${m}분 ${s}초`
-  }
-  return `${m}분 ${s}초`
-}
-
-export function formatDistance(meters: number): string {
-  return `${(meters / 1000).toFixed(2)} km`
-}
-
-export function formatPace(secPerKm?: number): string {
-  if (!secPerKm || secPerKm <= 0 || secPerKm > 1800) return '-'
-  const m = Math.floor(secPerKm / 60)
-  const s = Math.floor(secPerKm % 60)
-  return `${m}'${String(s).padStart(2, '0')}" /km`
 }
 
 export default function ActivitySummaryCard({ summary }: Props) {

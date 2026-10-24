@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import ActivitySplitsTable, { computeSplits, formatPace, formatTime } from './ActivitySplitsTable'
+import ActivitySplitsTable from './ActivitySplitsTable'
+import { formatTablePace as formatPace, formatTime } from '../utils/formatters'
+import { computeSplits } from '../utils/splits'
 import type { RecordPoint } from '../api/client'
 
 describe('ActivitySplitsTable', () => {
