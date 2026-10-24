@@ -72,7 +72,7 @@ describe('ActivitySplitsTable', () => {
     render(<ActivitySplitsTable records={mockRecords} />)
 
     expect(screen.getByTestId('activity-splits-table')).toBeInTheDocument()
-    expect(screen.getByText('구간별 상세 분석 (스플릿)')).toBeInTheDocument()
+    expect(screen.getByText('구간별 상세 분석 (계산된 스플릿)')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '1km' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '5분' })).toBeInTheDocument()
 
@@ -81,7 +81,7 @@ describe('ActivitySplitsTable', () => {
     expect(screen.getByRole('button', { name: '5분' })).toHaveClass('active')
   })
 
-  it('laps 데이터가 전달되면 인터벌 탭이 노출되고 인터벌 데이터가 표시된다', () => {
+  it('laps 데이터가 전달되면 수동/인터벌 랩과 계산된 스플릿 테이블이 모두 함께 표시된다', () => {
     const mockLaps = [
       {
         lap_index: 1,
@@ -91,6 +91,7 @@ describe('ActivitySplitsTable', () => {
         avg_pace_sec_per_km: 300,
         avg_heart_rate: 165,
         max_heart_rate: 175,
+        lap_trigger: 'manual',
         intensity: 'active',
       },
       {
@@ -101,17 +102,20 @@ describe('ActivitySplitsTable', () => {
         avg_pace_sec_per_km: 600,
         avg_heart_rate: 130,
         max_heart_rate: 140,
+        lap_trigger: 'manual',
         intensity: 'rest',
       },
     ]
 
     render(<ActivitySplitsTable records={mockRecords} laps={mockLaps} />)
 
-    const intervalBtn = screen.getByRole('button', { name: '인터벌 (2개)' })
-    expect(intervalBtn).toBeInTheDocument()
+    // 수동/인터벌 랩 카드와 계산된 스플릿 카드가 동시에 렌더링됨 (Runalyze 스타일)
+    expect(screen.getByTestId('manual-laps-card')).toBeInTheDocument()
+    expect(screen.getByTestId('computed-splits-card')).toBeInTheDocument()
+    expect(screen.getByText('수동 / 인터벌 랩 (2개)')).toBeInTheDocument()
+    expect(screen.getByText('구간별 상세 분석 (계산된 스플릿)')).toBeInTheDocument()
 
-    // laps가 있으면 기본적으로 인터벌이 active 상태임
-    expect(intervalBtn).toHaveClass('active')
+    // 인터벌 라벨 및 심박수 표시 확인
     expect(screen.getByText('1 (질주)')).toBeInTheDocument()
     expect(screen.getByText('2 (회복)')).toBeInTheDocument()
     expect(screen.getByText('165 bpm')).toBeInTheDocument()

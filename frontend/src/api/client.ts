@@ -41,6 +41,7 @@ export interface LapData {
   max_heart_rate?: number
   elevation_gain_m?: number
   calories?: number
+  lap_trigger?: string
   intensity?: string
 }
 

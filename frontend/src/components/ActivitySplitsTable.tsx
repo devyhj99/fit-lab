@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { LapData, RecordPoint } from '../api/client'
 import { formatTime, formatTablePace as formatPace } from '../utils/formatters'
-import { computeSplits, type SplitMode } from '../utils/splits'
+import { computeSplits, type SplitItem, type SplitMode } from '../utils/splits'
 
 interface Props {
   records: RecordPoint[]
@@ -10,150 +10,193 @@ interface Props {
   onHoverIndex?: (index: number | null) => void
 }
 
+type ComputedSplitMode = Exclude<SplitMode, 'interval'>
+
+function computeOverallAvgPace(splits: SplitItem[]): number | null {
+  if (splits.length === 0) return null
+  let totalDist = 0
+  let totalDur = 0
+  for (const s of splits) {
+    totalDist += s.distanceM
+    totalDur += s.durationSec
+  }
+  return totalDist > 0 ? (totalDur / totalDist) * 1000 : null
+}
+
+function SplitsDataTable({
+  splits,
+  tableKey,
+   hoveredRowKey,
+  setHoveredRowKey,
+  hoverIndex,
+  onHoverIndex,
+}: {
+  splits: SplitItem[]
+  tableKey: string
+  hoveredRowKey: string | null
+  setHoveredRowKey: (key: string | null) => void
+  hoverIndex?: number | null
+  onHoverIndex?: (index: number | null) => void
+}) {
+  const overallAvgPace = useMemo(() => computeOverallAvgPace(splits), [splits])
+
+  return (
+    <div className="table-responsive">
+      <table className="splits-table">
+        <thead>
+          <tr>
+            <th scope="col">구간</th>
+            <th scope="col">거리</th>
+            <th scope="col">시간</th>
+            <th scope="col">평균 페이스</th>
+            <th scope="col">평균 심박수</th>
+            <th scope="col">최대 심박수</th>
+            <th scope="col">획득 고도</th>
+          </tr>
+        </thead>
+        <tbody>
+          {splits.map((split) => {
+            const rowKey = `${tableKey}-${split.id}`
+            const isHovered =
+              hoveredRowKey !== null
+                ? hoveredRowKey === rowKey
+                : hoverIndex !== null &&
+                  hoverIndex !== undefined &&
+                  hoverIndex >= split.startIndex &&
+                  hoverIndex <= split.endIndex
+
+            const paceDiff =
+              split.avgPaceSecPerKm && overallAvgPace
+                ? Math.round(split.avgPaceSecPerKm - overallAvgPace)
+                : null
+
+            return (
+              <tr
+                key={rowKey}
+                className={isHovered ? 'row-hovered' : ''}
+                onMouseEnter={() => {
+                  setHoveredRowKey(rowKey)
+                  onHoverIndex?.(split.startIndex)
+                }}
+                onMouseLeave={() => {
+                  setHoveredRowKey(null)
+                  onHoverIndex?.(null)
+                }}
+              >
+                <td className="col-split font-bold">{split.label}</td>
+                <td>{(split.distanceM / 1000).toFixed(2)} km</td>
+                <td>{formatTime(split.durationSec)}</td>
+                <td>
+                  <span className="pace-cell">
+                    <span>{formatPace(split.avgPaceSecPerKm)}</span>
+                    {paceDiff !== null && (
+                      <span
+                        className={`pace-diff ${paceDiff < 0 ? 'pace-faster' : paceDiff > 0 ? 'pace-slower' : ''}`}
+                        title={`전체 평균 대비 ${paceDiff < 0 ? `${Math.abs(paceDiff)}초 빠름` : `${paceDiff}초 느림`}`}
+                      >
+                        {paceDiff < 0
+                          ? `-${Math.abs(paceDiff)}s`
+                          : paceDiff > 0
+                            ? `+${paceDiff}s`
+                            : '±0s'}
+                      </span>
+                    )}
+                  </span>
+                </td>
+                <td>{split.avgHeartRate ? `${split.avgHeartRate} bpm` : '-'}</td>
+                <td>{split.maxHeartRate ? `${split.maxHeartRate} bpm` : '-'}</td>
+                <td>{split.elevationGainM > 0 ? `+${split.elevationGainM} m` : '0 m'}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export default function ActivitySplitsTable({ records, laps, hoverIndex, onHoverIndex }: Props) {
   const hasLaps = Boolean(laps && laps.length > 0)
-  const [userSelectedMode, setUserSelectedMode] = useState<SplitMode | null>(null)
-  const [hoveredSplitId, setHoveredSplitId] = useState<number | null>(null)
+  const [computedMode, setComputedMode] = useState<ComputedSplitMode>('1km')
+  const [hoveredRowKey, setHoveredRowKey] = useState<string | null>(null)
 
-  // 사용자가 명시적으로 선택한 모드가 없으면 laps 유무에 따라 기본값 자동 결정
-  const splitMode: SplitMode = userSelectedMode ?? (hasLaps ? 'interval' : '1km')
+  const manualSplits = useMemo(
+    () => (hasLaps ? computeSplits(records, 'interval', laps) : []),
+    [records, hasLaps, laps],
+  )
 
-  const splits = useMemo(() => computeSplits(records, splitMode, laps), [records, splitMode, laps])
+  const computedSplits = useMemo(
+    () => computeSplits(records, computedMode),
+    [records, computedMode],
+  )
 
-  // 전체 평균 페이스 (비교 표시용)
-  const overallAvgPace = useMemo(() => {
-    if (splits.length === 0) return null
-    let totalDist = 0
-    let totalDur = 0
-    for (const s of splits) {
-      totalDist += s.distanceM
-      totalDur += s.durationSec
-    }
-    return totalDist > 0 ? (totalDur / totalDist) * 1000 : null
-  }, [splits])
-
-  if (records.length === 0 || splits.length === 0) {
+  if (records.length === 0 || (manualSplits.length === 0 && computedSplits.length === 0)) {
     return null
   }
 
   return (
-    <div className="card splits-card" data-testid="activity-splits-table">
-      <div className="splits-header">
-        <h3>구간별 상세 분석 (스플릿)</h3>
-        <div className="splits-controls">
-          {hasLaps && (
-            <button
-              type="button"
-              className={`btn-toggle btn-interval ${splitMode === 'interval' ? 'active' : ''}`}
-              onClick={() => setUserSelectedMode('interval')}
-            >
-              인터벌 ({laps?.length}개)
-            </button>
-          )}
-          <button
-            type="button"
-            className={`btn-toggle ${splitMode === '1km' ? 'active' : ''}`}
-            onClick={() => setUserSelectedMode('1km')}
-          >
-            1km
-          </button>
-          <button
-            type="button"
-            className={`btn-toggle ${splitMode === '5km' ? 'active' : ''}`}
-            onClick={() => setUserSelectedMode('5km')}
-          >
-            5km
-          </button>
-          <button
-            type="button"
-            className={`btn-toggle ${splitMode === '5min' ? 'active' : ''}`}
-            onClick={() => setUserSelectedMode('5min')}
-          >
-            5분
-          </button>
-          <button
-            type="button"
-            className={`btn-toggle ${splitMode === '10min' ? 'active' : ''}`}
-            onClick={() => setUserSelectedMode('10min')}
-          >
-            10분
-          </button>
+    <div data-testid="activity-splits-table">
+      {manualSplits.length > 0 && (
+        <div className="card splits-card" data-testid="manual-laps-card">
+          <div className="splits-header">
+            <h3>수동 / 인터벌 랩 ({manualSplits.length}개)</h3>
+          </div>
+          <SplitsDataTable
+            splits={manualSplits}
+            tableKey="manual"
+            hoveredRowKey={hoveredRowKey}
+            setHoveredRowKey={setHoveredRowKey}
+            hoverIndex={hoverIndex}
+            onHoverIndex={onHoverIndex}
+          />
         </div>
-      </div>
+      )}
 
-      <div className="table-responsive">
-        <table className="splits-table">
-          <thead>
-            <tr>
-              <th scope="col">구간</th>
-              <th scope="col">거리</th>
-              <th scope="col">시간</th>
-              <th scope="col">평균 페이스</th>
-              <th scope="col">평균 심박수</th>
-              <th scope="col">최대 심박수</th>
-              <th scope="col">획득 고도</th>
-            </tr>
-          </thead>
-          <tbody>
-            {splits.map((split) => {
-              // 테이블에 직접 마우스를 올린 경우 해당 행만 단독 하이라이트,
-              // 차트/지도에서 호버한 경우 해당 인덱스를 포함하는 구간 1개만 하이라이트
-              const isHovered =
-                hoveredSplitId !== null
-                  ? hoveredSplitId === split.id
-                  : hoverIndex !== null &&
-                    hoverIndex !== undefined &&
-                    hoverIndex >= split.startIndex &&
-                    hoverIndex <= split.endIndex
-
-              // 평균 대비 페이스 차이 (초/km)
-              const paceDiff =
-                split.avgPaceSecPerKm && overallAvgPace
-                  ? Math.round(split.avgPaceSecPerKm - overallAvgPace)
-                  : null
-
-              return (
-                <tr
-                  key={split.id}
-                  className={isHovered ? 'row-hovered' : ''}
-                  onMouseEnter={() => {
-                    setHoveredSplitId(split.id)
-                    onHoverIndex?.(split.startIndex)
-                  }}
-                  onMouseLeave={() => {
-                    setHoveredSplitId(null)
-                    onHoverIndex?.(null)
-                  }}
-                >
-                  <td className="col-split font-bold">{split.label}</td>
-                  <td>{(split.distanceM / 1000).toFixed(2)} km</td>
-                  <td>{formatTime(split.durationSec)}</td>
-                  <td>
-                    <span className="pace-cell">
-                      <span>{formatPace(split.avgPaceSecPerKm)}</span>
-                      {paceDiff !== null && (
-                        <span
-                          className={`pace-diff ${paceDiff < 0 ? 'pace-faster' : paceDiff > 0 ? 'pace-slower' : ''}`}
-                          title={`전체 평균 대비 ${paceDiff < 0 ? `${Math.abs(paceDiff)}초 빠름` : `${paceDiff}초 느림`}`}
-                        >
-                          {paceDiff < 0
-                            ? `-${Math.abs(paceDiff)}s`
-                            : paceDiff > 0
-                              ? `+${paceDiff}s`
-                              : '±0s'}
-                        </span>
-                      )}
-                    </span>
-                  </td>
-                  <td>{split.avgHeartRate ? `${split.avgHeartRate} bpm` : '-'}</td>
-                  <td>{split.maxHeartRate ? `${split.maxHeartRate} bpm` : '-'}</td>
-                  <td>{split.elevationGainM > 0 ? `+${split.elevationGainM} m` : '0 m'}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      {computedSplits.length > 0 && (
+        <div className="card splits-card" data-testid="computed-splits-card">
+          <div className="splits-header">
+            <h3>구간별 상세 분석 (계산된 스플릿)</h3>
+            <div className="splits-controls">
+              <button
+                type="button"
+                className={`btn-toggle ${computedMode === '1km' ? 'active' : ''}`}
+                onClick={() => setComputedMode('1km')}
+              >
+                1km
+              </button>
+              <button
+                type="button"
+                className={`btn-toggle ${computedMode === '5km' ? 'active' : ''}`}
+                onClick={() => setComputedMode('5km')}
+              >
+                5km
+              </button>
+              <button
+                type="button"
+                className={`btn-toggle ${computedMode === '5min' ? 'active' : ''}`}
+                onClick={() => setComputedMode('5min')}
+              >
+                5분
+              </button>
+              <button
+                type="button"
+                className={`btn-toggle ${computedMode === '10min' ? 'active' : ''}`}
+                onClick={() => setComputedMode('10min')}
+              >
+                10분
+              </button>
+            </div>
+          </div>
+          <SplitsDataTable
+            splits={computedSplits}
+            tableKey="computed"
+            hoveredRowKey={hoveredRowKey}
+            setHoveredRowKey={setHoveredRowKey}
+            hoverIndex={hoverIndex}
+            onHoverIndex={onHoverIndex}
+          />
+        </div>
+      )}
     </div>
   )
 }

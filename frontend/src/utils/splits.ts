@@ -13,6 +13,7 @@ export interface SplitItem {
   elevationGainM: number
   startIndex: number
   endIndex: number
+  lapTrigger?: string
   intensity?: string
 }
 
@@ -143,6 +144,7 @@ export function computeSplits(
         elevationGainM: elevGain,
         startIndex: startIdx >= 0 ? startIdx : 0,
         endIndex: endIdx >= 0 ? endIdx : records.length - 1,
+        lapTrigger: lap.lap_trigger,
         intensity: lap.intensity,
       }
     })
