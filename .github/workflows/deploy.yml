@@ -93,8 +93,8 @@ jobs:
         id: repo_owner
         run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
-      # ARM64(서버) 및 AMD64 멀티 아키텍처 빌드를 위한 QEMU 에뮬레이터 설정
-      - name: QEMU 설정 (멀티 아키텍처 지원)
+      # OCI ARM64 서버 타겟 빌드를 위한 QEMU 에뮬레이터 설정
+      - name: QEMU 설정 (ARM64 아키텍처 지원)
         uses: docker/setup-qemu-action@v3
 
       - name: Docker Buildx 빌더 설정
@@ -112,7 +112,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           push: true
           tags: |
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/fit-lab-backend:latest
@@ -123,7 +123,7 @@ jobs:
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           push: true
           tags: |
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/fit-lab-frontend:latest
