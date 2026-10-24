@@ -71,10 +71,16 @@ jobs:
 
       - name: Vitest 단위 테스트 및 커버리지 리포트 생성
         run: |
-          echo "### 🧪 프론트엔드 테스트 및 커버리지 요약" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          pnpm test:coverage --reporter=default --reporter=github | tee -a $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          pnpm test:coverage --reporter=default --reporter=github 2>&1 | tee test-output.txt
+
+          echo "### 🧪 프론트엔드 테스트 및 커버리지 요약" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' test-output.txt | grep -E "Test Files.*passed|Tests.*passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' test-output.txt | grep -A 25 "% Coverage report from v8" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          rm -f test-output.txt
 
       - name: 프론트엔드 프로덕션 정적 파일 빌드 검증
         run: pnpm build
