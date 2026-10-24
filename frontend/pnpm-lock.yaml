@@ -166,9 +166,6 @@ importers:
 
   .:
     dependencies:
-      '@types/leaflet':
-        specifier: ^1.9.22
-        version: 1.9.22
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
@@ -188,9 +185,6 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.3(jiti@2.7.0))
-      '@testing-library/dom':
-        specifier: ^10.4.2
-        version: 10.4.2
       '@testing-library/jest-dom':
         specifier: ^7.0.1
         version: 7.0.1(@testing-library/dom@10.4.2)(vitest@5.0.3)
@@ -200,6 +194,9 @@ importers:
       '@testing-library/user-event':
         specifier: ^14.6.7
         version: 14.6.7(@testing-library/dom@10.4.2)
+      '@types/leaflet':
+        specifier: ^1.9.22
+        version: 1.9.22
       '@types/react':
         specifier: ^19.0.0
         version: 19.3.0
