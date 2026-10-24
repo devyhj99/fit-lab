@@ -71,7 +71,7 @@ jobs:
 
       - name: Vitest 단위 테스트 및 커버리지 리포트 생성
         run: |
-          pnpm test:coverage --reporter=default --reporter=github 2>&1 | tee test-output.txt
+          pnpm test:coverage --reporter=default --reporter=github-actions 2>&1 | tee test-output.txt
 
           echo "### 🧪 프론트엔드 테스트 및 커버리지 요약" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
