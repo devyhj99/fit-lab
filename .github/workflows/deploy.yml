@@ -152,7 +152,7 @@ jobs:
             cd "$TARGET_PATH"
 
             # 2. 최신 Docker 이미지 다운로드 및 무중단 컨테이너 재구동
-            echo "Pulling latest images from GHCR..."
+            echo "GHCR에서 최신 Docker 이미지를 다운로드합니다..."
             docker compose pull
             docker compose up -d --remove-orphans
 
@@ -164,24 +164,24 @@ jobs:
             PORT=${PORT:-42195}
 
             # 5. 배포 후 정상 구동 확인 (헬스체크: 최대 30초 대기)
-            echo "Waiting for services to become healthy on port $PORT..."
+            echo "포트 $PORT 에서 서비스 정상 구동(헬스체크) 응답을 대기 중입니다..."
             SUCCESS=0
             for i in $(seq 1 15); do
               if curl -s -f "http://localhost:$PORT/readyz" > /dev/null; then
-                echo "Healthcheck passed! Service is ready."
+                echo "헬스체크 통과! 서비스가 성공적으로 구동되었습니다."
                 SUCCESS=1
                 break
               fi
-              echo "Attempt $i/15: service not ready yet, retrying in 2s..."
+              echo "시도 $i/15: 아직 서비스가 준비되지 않았습니다. 2초 후 재시도..."
               sleep 2
             done
 
             # 6. 헬스체크 실패 시 최근 컨테이너 로그 출력 후 배포 실패 처리
             if [ $SUCCESS -ne 1 ]; then
-              echo "Deployment failed: Healthcheck timed out!"
-              echo "=== Recent Backend Logs ==="
+              echo "배포 실패: 헬스체크 제한 시간을 초과했습니다!"
+              echo "=== 최근 백엔드 컨테이너 로그 ==="
               docker compose logs backend --tail=50
-              echo "=== Recent Frontend Logs ==="
+              echo "=== 최근 프론트엔드 컨테이너 로그 ==="
               docker compose logs frontend --tail=50
               exit 1
             fi
