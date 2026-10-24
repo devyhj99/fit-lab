@@ -1,13 +1,31 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { uploadActivity } from '../api/client'
-import type { UploadReceipt } from '../api/client'
+import {
+  deleteActivity,
+  fetchActivities,
+  fetchActivityDetail,
+  updateActivityName,
+  uploadActivity,
+} from '../api/client'
+import type {
+  ActivityListItem,
+  ActivitySummary,
+  LapData,
+  RecordPoint,
+} from '../api/client'
 import ActivitySummaryCard from '../components/ActivitySummaryCard'
 import ActivityChart from '../components/ActivityChart'
 import ActivityMap from '../components/ActivityMap'
 import ActivitySplitsTable from '../components/ActivitySplitsTable'
+import ActivityList from '../components/ActivityList'
 
 type ServiceStatus = '확인 중' | '연결됨' | '연결할 수 없음' | 'DB 연결 확인 필요'
+
+interface DisplayedActivity {
+  summary?: ActivitySummary
+  records?: RecordPoint[]
+  laps?: LapData[]
+}
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null)
@@ -16,15 +34,39 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false)
   const [fileError, setFileError] = useState('')
   const [uploadMessage, setUploadMessage] = useState('')
-  const [activityData, setActivityData] = useState<UploadReceipt | null>(null)
+  const [activityData, setActivityData] = useState<DisplayedActivity | null>(null)
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
+
+  const [activities, setActivities] = useState<ActivityListItem[]>([])
+  const [totalActivities, setTotalActivities] = useState(0)
+  const [selectedActivityId, setSelectedActivityId] = useState<number | null>(null)
+  const [isListLoading, setIsListLoading] = useState(false)
+
+  const loadActivities = useCallback(async () => {
+    setIsListLoading(true)
+    try {
+      const res = await fetchActivities(20, 0)
+      if (res && Array.isArray(res.activities)) {
+        setActivities(res.activities)
+        setTotalActivities(res.total ?? res.activities.length)
+      }
+    } catch {
+      // 목록 조회 실패 시 기존 상태 유지
+    } finally {
+      setIsListLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
 
     fetch('/readyz')
       .then((response) => {
-        if (active) setServiceStatus(response.ok ? '연결됨' : 'DB 연결 확인 필요')
+        if (!active) return
+        setServiceStatus(response.ok ? '연결됨' : 'DB 연결 확인 필요')
+        if (response.ok) {
+          void loadActivities()
+        }
       })
       .catch(() => {
         if (active) setServiceStatus('연결할 수 없음')
@@ -33,7 +75,7 @@ export default function App() {
     return () => {
       active = false
     }
-  }, [])
+  }, [loadActivities])
 
   function selectFile(candidate?: File) {
     if (!candidate) return
@@ -58,14 +100,60 @@ export default function App() {
     try {
       const receipt = await uploadActivity(file)
       const sizeMB = (receipt.size_bytes / (1024 * 1024)).toFixed(2)
-      setUploadMessage(`서버가 ${receipt.filename} 파일을 받았습니다 (${sizeMB} MB).`)
+      const duplicateNote = receipt.is_duplicate ? ' (이미 저장된 활동)' : ''
+      setUploadMessage(`서버가 ${receipt.filename} 파일을 받았습니다 (${sizeMB} MB)${duplicateNote}.`)
       setActivityData(receipt)
+      setSelectedActivityId(receipt.activity_id ?? null)
       setHoverIndex(null)
+      void loadActivities()
     } catch (error) {
       setFileError(error instanceof Error ? error.message : '파일 업로드에 실패했습니다.')
       setActivityData(null)
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  async function handleSelectActivity(id: number) {
+    setFileError('')
+    try {
+      const detail = await fetchActivityDetail(id)
+      setSelectedActivityId(detail.id)
+      setActivityData({
+        summary: detail.summary,
+        records: detail.records,
+        laps: detail.laps,
+      })
+      setHoverIndex(null)
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : '활동 상세 정보를 불러오지 못했습니다.')
+    }
+  }
+
+  async function handleDeleteActivity(id: number) {
+    setFileError('')
+    try {
+      await deleteActivity(id)
+      if (selectedActivityId === id) {
+        setSelectedActivityId(null)
+        setActivityData(null)
+        setHoverIndex(null)
+      }
+      await loadActivities()
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : '활동을 삭제하지 못했습니다.')
+    }
+  }
+
+  async function handleRenameActivity(id: number, name: string) {
+    setFileError('')
+    try {
+      const updated = await updateActivityName(id, name)
+      setActivities((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, name: updated.name } : item)),
+      )
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : '활동 이름을 수정하지 못했습니다.')
     }
   }
 
@@ -117,6 +205,16 @@ export default function App() {
           업로드된 파일은 서버에서 파싱되어 심박수, 페이스, 고도 시계열 및 GPS 경로로 시각화됩니다.
         </p>
       </section>
+
+      <ActivityList
+        activities={activities}
+        total={totalActivities}
+        selectedId={selectedActivityId}
+        isLoading={isListLoading}
+        onSelect={handleSelectActivity}
+        onRename={handleRenameActivity}
+        onDelete={handleDeleteActivity}
+      />
 
       {/* 활동 요약 정보 */}
       {activityData?.summary && (

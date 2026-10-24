@@ -7,7 +7,10 @@ const fetchMock = vi.fn()
 
 beforeEach(() => {
   fetchMock.mockReset()
-  fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) })
+  fetchMock.mockResolvedValue({
+    ok: true,
+    json: async () => ({ activities: [], total: 0, limit: 20, offset: 0 }),
+  })
   vi.stubGlobal('fetch', fetchMock)
 })
 
@@ -16,7 +19,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('FIT 파일 업로드 화면', () => {
+describe('FIT 파일 업로드 및 활동 관리 화면', () => {
   it('FIT 파일을 선택하면 파일명을 표시한다', async () => {
     const user = userEvent.setup()
     render(<App />)
@@ -99,10 +102,16 @@ describe('FIT 파일 업로드 화면', () => {
 
   it('선택한 FIT 파일을 API로 전송하고 응답을 표시한다', async () => {
     const user = userEvent.setup()
-    fetchMock.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ status: 'received', filename: 'morning-run.fit', size_bytes: 8 }),
-    })
+    fetchMock
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ activities: [], total: 0, limit: 20, offset: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'received', filename: 'morning-run.fit', size_bytes: 8 }),
+      })
     render(<App />)
 
     const file = new File(['fit data'], 'morning-run.fit', { type: 'application/octet-stream' })
@@ -112,8 +121,7 @@ describe('FIT 파일 업로드 화면', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       '서버가 morning-run.fit 파일을 받았습니다 (0.00 MB).',
     )
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+    expect(fetchMock).toHaveBeenCalledWith(
       '/api/activities',
       expect.objectContaining({ method: 'POST' }),
     )
@@ -121,10 +129,16 @@ describe('FIT 파일 업로드 화면', () => {
 
   it('업로드 API 오류를 사용자에게 표시한다', async () => {
     const user = userEvent.setup()
-    fetchMock.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ error: '업로드 파일은 25MB 이하여야 합니다.' }),
-    })
+    fetchMock
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ activities: [], total: 0, limit: 20, offset: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: '업로드 파일은 25MB 이하여야 합니다.' }),
+      })
     render(<App />)
 
     const file = new File(['fit data'], 'large.fit', { type: 'application/octet-stream' })
@@ -138,37 +152,44 @@ describe('FIT 파일 업로드 화면', () => {
 
   it('파싱 완료 후 활동 요약 카드, 차트, 지도를 렌더링한다', async () => {
     const user = userEvent.setup()
-    fetchMock.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        status: 'received',
-        filename: 'run.fit',
-        size_bytes: 1024,
-        summary: {
-          sport: 'running',
-          start_time: '2026-10-03T11:08:29Z',
-          duration_sec: 1800,
-          distance_m: 5000,
-          avg_heart_rate: 150,
-        },
-        records: [
-          {
-            time: '2026-10-03T11:08:29Z',
-            elapsed_sec: 0,
-            latitude: 37.5,
-            longitude: 127.1,
-            heart_rate: 140,
+    fetchMock
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ activities: [], total: 0, limit: 20, offset: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'received',
+          activity_id: 1,
+          filename: 'run.fit',
+          size_bytes: 1024,
+          summary: {
+            sport: 'running',
+            start_time: '2026-10-03T11:08:29Z',
+            duration_sec: 1800,
+            distance_m: 5000,
+            avg_heart_rate: 150,
           },
-          {
-            time: '2026-10-03T11:08:30Z',
-            elapsed_sec: 1,
-            latitude: 37.51,
-            longitude: 127.11,
-            heart_rate: 142,
-          },
-        ],
-      }),
-    })
+          records: [
+            {
+              time: '2026-10-03T11:08:29Z',
+              elapsed_sec: 0,
+              latitude: 37.5,
+              longitude: 127.1,
+              heart_rate: 140,
+            },
+            {
+              time: '2026-10-03T11:08:30Z',
+              elapsed_sec: 1,
+              latitude: 37.51,
+              longitude: 127.11,
+              heart_rate: 142,
+            },
+          ],
+        }),
+      })
     render(<App />)
 
     const file = new File(['fit data'], 'run.fit', { type: 'application/octet-stream' })
@@ -181,5 +202,71 @@ describe('FIT 파일 업로드 화면', () => {
     expect(screen.getByTestId('activity-chart')).toBeInTheDocument()
     expect(screen.getByTestId('activity-map')).toBeInTheDocument()
     expect(screen.getByTestId('activity-splits-table')).toBeInTheDocument()
+  })
+
+  it('저장된 활동 목록에서 활동을 선택해 상세 조회하고 삭제할 수 있다', async () => {
+    const user = userEvent.setup()
+    const savedItem = {
+      id: 7,
+      name: '석촌호수 러닝',
+      filename: 'seokchon.fit',
+      source_channel: 'upload',
+      sport: 'running',
+      start_time: '2026-10-03T11:00:00Z',
+      has_gps: true,
+      duration_sec: 1800,
+      distance_m: 5000,
+      avg_pace_sec_per_km: 360,
+      avg_heart_rate: 150,
+      created_at: '2026-10-03T12:00:00Z',
+    }
+
+    fetchMock
+      .mockResolvedValueOnce({ ok: true }) // /readyz
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ activities: [savedItem], total: 1, limit: 20, offset: 0 }),
+      }) // 초기 목록 조회
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 7,
+          name: '석촌호수 러닝',
+          filename: 'seokchon.fit',
+          source_channel: 'upload',
+          has_gps: false,
+          summary: {
+            sport: 'running',
+            start_time: '2026-10-03T11:00:00Z',
+            duration_sec: 1800,
+            distance_m: 5000,
+            avg_heart_rate: 150,
+          },
+          records: [],
+        }),
+      }) // 상세 조회
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'deleted', id: 7 }),
+      }) // 삭제
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ activities: [], total: 0, limit: 20, offset: 0 }),
+      }) // 삭제 후 목록 재조회
+
+    render(<App />)
+
+    expect(await screen.findByText('석촌호수 러닝')).toBeInTheDocument()
+
+    // 목록 항목 클릭 시 상세 요약 카드 표시
+    await user.click(screen.getByText('석촌호수 러닝'))
+    expect(await screen.findByTestId('activity-summary-card')).toBeInTheDocument()
+
+    // 삭제 버튼 클릭 시 삭제 후 상세 화면 해제
+    await user.click(screen.getByRole('button', { name: '석촌호수 러닝 삭제' }))
+    expect(
+      await screen.findByText('저장된 활동 기록이 없습니다. 위에서 FIT 파일을 업로드해 보세요.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByTestId('activity-summary-card')).not.toBeInTheDocument()
   })
 })
