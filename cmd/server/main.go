@@ -45,7 +45,7 @@ func run() error {
 
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           api.NewHandler(db),
+		Handler:           api.NewHandler(store.NewStore(db)),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
