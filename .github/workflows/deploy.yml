@@ -177,7 +177,7 @@ jobs:
             echo "포트 $PORT 에서 서비스 정상 구동(헬스체크) 응답을 대기 중입니다..."
             SUCCESS=0
             for i in $(seq 1 15); do
-              if curl -s -f "http://localhost:$PORT/readyz" > /dev/null; then
+              if curl -s -f "http://127.0.0.1:$PORT/readyz" > /dev/null; then
                 echo "헬스체크 통과! 서비스가 성공적으로 구동되었습니다."
                 SUCCESS=1
                 break

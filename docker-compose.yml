@@ -8,7 +8,7 @@ services:
     networks:
       - global-net
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/healthz || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -28,7 +28,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:42195/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:42195/healthz || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 3
